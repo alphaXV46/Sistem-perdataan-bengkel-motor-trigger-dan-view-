@@ -1,7 +1,7 @@
 # 🏍️ Sistem Database Bengkel Motor Pro (MySQL)
 
 > Project Database Relasional menggunakan **MySQL 8.4.3**
-> Studi kasus: Manajemen Data Bengkel Motor dengan Automasi Trigger & View Laporan
+> Studi kasus: Manajemen Data Bengkel Motor dengan fokus pada **Trigger** dan **View**
 
 ---
 
@@ -20,59 +20,33 @@
 
 # 📌 Deskripsi Project
 
-Project ini merupakan implementasi sistem database bengkel motor berbasis **MySQL** yang tidak hanya berfungsi sebagai penyimpanan data, tetapi juga memiliki **logika otomatis (Triggers)** dan **laporan dinamis (Views)**.
+Project ini membangun sistem database bengkel motor yang menekankan pada:
 
-### 🎯 Tujuan
-
-* Mengelola data pelanggan, motor, dan servis
-* Menjaga konsistensi data secara otomatis
-* Menyediakan laporan tanpa query kompleks
-
-### ⚙️ Fitur Utama
-
-| Fitur    | Keterangan                                         |
-| -------- | -------------------------------------------------- |
-| Triggers | 6 trigger untuk validasi, logging, dan otomatisasi |
-| Views    | 2 view untuk laporan                               |
-| Relasi   | Foreign Key untuk menjaga integritas data          |
-| Audit    | Log perubahan & arsip data                         |
+* ✅ **Trigger** → untuk otomatisasi dan validasi data
+* ✅ **View** → untuk menampilkan laporan tanpa query kompleks
+* ✅ **Relasi Tabel** → menjaga integritas data antar tabel
 
 ---
 
-# 🗄️ 1. Setup Database & Tabel Tambahan
+# 🗄️ 1. Setup Database
 
 ```sql
 CREATE DATABASE db_bengkel_motor_pro;
 USE db_bengkel_motor_pro;
-
-CREATE TABLE log_pembayaran (
-    id_log INT PRIMARY KEY AUTO_INCREMENT,
-    id_servis INT,
-    biaya_lama DECIMAL(10,2),
-    biaya_baru DECIMAL(10,2),
-    waktu_perubahan DATETIME
-);
-
-CREATE TABLE arsip_servis (
-    id_arsip INT PRIMARY KEY AUTO_INCREMENT,
-    id_motor INT,
-    keluhan TEXT,
-    tanggal_hapus DATETIME
-);
 ```
 
 ---
 
-# 📊 2. Struktur Tabel Utama
+# 📊 2. Struktur Tabel
 
-## 🔹 Tabel pelanggan
+## 👤 Tabel `pelanggan`
 
-| Field          | Tipe Data    | Keterangan     |
-| -------------- | ------------ | -------------- |
-| id_pelanggan   | INT (PK, AI) | ID pelanggan   |
-| nama_pelanggan | VARCHAR(100) | Nama pelanggan |
-| alamat         | TEXT         | Alamat         |
-| no_telp        | VARCHAR(15)  | Nomor telepon  |
+| Field          | Tipe Data    | Keterangan   |
+| -------------- | ------------ | ------------ |
+| id_pelanggan   | INT (PK, AI) | ID pelanggan |
+| nama_pelanggan | VARCHAR(100) | Nama         |
+| alamat         | TEXT         | Alamat       |
+| no_telp        | VARCHAR(15)  | Telepon      |
 
 ```sql
 CREATE TABLE pelanggan (
@@ -85,13 +59,13 @@ CREATE TABLE pelanggan (
 
 ---
 
-## 🔹 Tabel motor
+## 🏍️ Tabel `motor`
 
 | Field               | Tipe Data    | Keterangan          |
 | ------------------- | ------------ | ------------------- |
 | id_motor            | INT (PK, AI) | ID motor            |
 | plat_nomor          | VARCHAR(15)  | Unik                |
-| merk                | VARCHAR(50)  | Merk motor          |
+| merk                | VARCHAR(50)  | Merk                |
 | id_pelanggan        | INT (FK)     | Relasi ke pelanggan |
 | total_servis_dibuat | INT          | Counter servis      |
 
@@ -108,16 +82,16 @@ CREATE TABLE motor (
 
 ---
 
-## 🔹 Tabel servis
+## 🔧 Tabel `servis`
 
-| Field             | Tipe Data     | Keterangan      |
-| ----------------- | ------------- | --------------- |
-| id_servis         | INT (PK, AI)  | ID servis       |
-| id_motor          | INT (FK)      | Relasi ke motor |
-| tanggal_servis    | DATE          | Tanggal         |
-| keluhan           | TEXT          | Keluhan         |
-| biaya             | DECIMAL(10,2) | Biaya           |
-| status_pembayaran | VARCHAR(20)   | Status          |
+| Field             | Tipe Data     | Keterangan           |
+| ----------------- | ------------- | -------------------- |
+| id_servis         | INT (PK, AI)  | ID servis            |
+| id_motor          | INT (FK)      | Relasi ke motor      |
+| tanggal_servis    | DATE          | Tanggal              |
+| keluhan           | TEXT          | Keluhan              |
+| biaya             | DECIMAL(10,2) | Biaya                |
+| status_pembayaran | VARCHAR(20)   | Default: belum lunas |
 
 ```sql
 CREATE TABLE servis (
@@ -133,20 +107,60 @@ CREATE TABLE servis (
 
 ---
 
-# ⚡ 3. Implementasi Trigger
+## 📁 Tabel Tambahan
 
-| No | Nama Trigger              | Event         | Fungsi          |
-| -- | ------------------------- | ------------- | --------------- |
-| 1  | trg_upper_plat            | BEFORE INSERT | Uppercase plat  |
-| 2  | trg_validasi_biaya        | BEFORE INSERT | Validasi biaya  |
-| 3  | trg_log_biaya             | AFTER UPDATE  | Log perubahan   |
-| 4  | trg_update_counter_servis | AFTER INSERT  | Hitung servis   |
-| 5  | trg_protect_lunas         | BEFORE UPDATE | Proteksi status |
-| 6  | trg_arsip_servis          | AFTER DELETE  | Arsip data      |
+### Log Pembayaran
+
+```sql
+CREATE TABLE log_pembayaran (
+    id_log INT PRIMARY KEY AUTO_INCREMENT,
+    id_servis INT,
+    biaya_lama DECIMAL(10,2),
+    biaya_baru DECIMAL(10,2),
+    waktu_perubahan DATETIME
+);
+```
+
+### Arsip Servis
+
+```sql
+CREATE TABLE arsip_servis (
+    id_arsip INT PRIMARY KEY AUTO_INCREMENT,
+    id_motor INT,
+    keluhan TEXT,
+    tanggal_hapus DATETIME
+);
+```
 
 ---
 
-### 1. Auto Uppercase Plat
+# 🔗 Relasi Database
+
+| Relasi            | Penjelasan                             |
+| ----------------- | -------------------------------------- |
+| Pelanggan → Motor | 1 pelanggan bisa memiliki banyak motor |
+| Motor → Servis    | 1 motor bisa memiliki banyak servis    |
+
+---
+
+# 📝 3. Insert Data (Contoh)
+
+```sql
+INSERT INTO pelanggan (nama_pelanggan, no_telp, alamat) VALUES
+('geraldy', '0822', 'bandung');
+
+INSERT INTO motor (plat_nomor, merk, id_pelanggan) VALUES
+('b1234xyz', 'honda', 1);
+
+INSERT INTO servis (id_motor, tanggal_servis, keluhan, biaya) VALUES
+(1, '2026-04-01', 'ganti oli', 75000);
+```
+
+---
+
+# ⚡ 4. Implementasi Trigger
+
+## 1. Auto Uppercase Plat
 
 ```sql
 CREATE TRIGGER trg_upper_plat
@@ -157,7 +171,7 @@ SET NEW.plat_nomor = UPPER(NEW.plat_nomor);
 
 ---
 
-### 2. Validasi Biaya
+## 2. Validasi Biaya
 
 ```sql
 DELIMITER //
@@ -166,7 +180,8 @@ BEFORE INSERT ON servis
 FOR EACH ROW
 BEGIN
     IF NEW.biaya < 0 THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Biaya tidak boleh negatif!';
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'Biaya tidak boleh negatif!';
     END IF;
 END //
 DELIMITER ;
@@ -174,7 +189,7 @@ DELIMITER ;
 
 ---
 
-### 3. Log Perubahan Biaya
+## 3. Log Perubahan Biaya
 
 ```sql
 CREATE TRIGGER trg_log_biaya
@@ -190,20 +205,20 @@ END;
 
 ---
 
-### 4. Counter Servis Motor
+## 4. Counter Servis
 
 ```sql
 CREATE TRIGGER trg_update_counter_servis
 AFTER INSERT ON servis
 FOR EACH ROW
 UPDATE motor 
-SET total_servis_dibuat = total_servis_dibuat + 1 
+SET total_servis_dibuat = total_servis_dibuat + 1
 WHERE id_motor = NEW.id_motor;
 ```
 
 ---
 
-### 5. Proteksi Status Lunas
+## 5. Proteksi Status Lunas
 
 ```sql
 DELIMITER //
@@ -222,7 +237,7 @@ DELIMITER ;
 
 ---
 
-### 6. Arsip Data Terhapus
+## 6. Arsip Data Terhapus
 
 ```sql
 CREATE TRIGGER trg_arsip_servis
@@ -234,16 +249,9 @@ VALUES (OLD.id_motor, OLD.keluhan, NOW());
 
 ---
 
-# 👁️ 4. Implementasi View
+# 👁️ 5. Implementasi View
 
-| No | Nama View            | Fungsi         |
-| -- | -------------------- | -------------- |
-| 1  | v_riwayat_lengkap    | Riwayat servis |
-| 2  | v_pendapatan_bulanan | Laporan omzet  |
-
----
-
-### 1. View Riwayat Lengkap
+## 1. View Riwayat Servis
 
 ```sql
 CREATE VIEW v_riwayat_lengkap AS
@@ -262,7 +270,7 @@ JOIN servis s ON m.id_motor = s.id_motor;
 
 ---
 
-### 2. View Pendapatan Bulanan
+## 2. View Pendapatan Bulanan
 
 ```sql
 CREATE VIEW v_pendapatan_bulanan AS
@@ -277,58 +285,61 @@ GROUP BY bulan;
 
 ---
 
-# 📝 5. Contoh Hasil Output
-
-## 🔹 Riwayat Servis
-
-| nama_pelanggan | plat_nomor | merk  | tanggal_servis | keluhan   | biaya | status |
-| -------------- | ---------- | ----- | -------------- | --------- | ----- | ------ |
-| Geraldy        | B1234XYZ   | Honda | 2026-04-01     | Ganti oli | 75000 | lunas  |
-
----
-
-## 🔹 Pendapatan Bulanan
-
-| bulan   | total_transaksi | total_pendapatan |
-| ------- | --------------- | ---------------- |
-| 2026-04 | 5               | 350000           |
-
----
-
 # 🧪 6. Pengujian
 
-### Query View
+## Menampilkan Data View
 
 ```sql
 SELECT * FROM v_riwayat_lengkap;
 SELECT * FROM v_pendapatan_bulanan;
 ```
 
-### Uji Validasi Trigger
+---
+
+## Contoh Hasil
+
+### Riwayat Servis
+
+| nama_pelanggan | plat_nomor | merk  | tanggal_servis | keluhan   | biaya | status_pembayaran |
+| -------------- | ---------- | ----- | -------------- | --------- | ----- | ----------------- |
+| geraldy        | B1234XYZ   | honda | 2026-04-01     | ganti oli | 75000 | belum lunas       |
+
+---
+
+### Pendapatan Bulanan
+
+| bulan   | total_transaksi | total_pendapatan |
+| ------- | --------------- | ---------------- |
+| 2026-04 | 1               | 75000            |
+
+---
+
+## Uji Trigger Validasi
 
 ```sql
-INSERT INTO servis (id_motor, tanggal_servis, keluhan, biaya) 
-VALUES (1, '2026-04-08', 'cek mesin', -50000);
+INSERT INTO servis (id_motor, tanggal_servis, keluhan, biaya)
+VALUES (1, '2026-04-02', 'cek mesin', -50000);
 ```
 
 ---
 
 # 🎯 Kesimpulan
 
-| Aspek         | Hasil                            |
-| ------------- | -------------------------------- |
-| Keamanan Data | Validasi & proteksi otomatis     |
-| Audit         | Tercatat log & arsip             |
-| Efisiensi     | View menggantikan query kompleks |
+| Aspek   | Hasil                                 |
+| ------- | ------------------------------------- |
+| Trigger | Berjalan untuk validasi & otomatisasi |
+| View    | Menyederhanakan laporan               |
+| Relasi  | Data terhubung dengan baik            |
 
-Database ini sudah siap digunakan sebagai backend dan dapat diintegrasikan ke aplikasi seperti Laravel atau sistem manajemen bengkel.
+Database ini menunjukkan bagaimana **Trigger** dan **View** dapat meningkatkan efisiensi dan keamanan dalam sistem database.
 
 ---
 
 # 🚀 Status Project
 
-| Status      | Keterangan     |
-| ----------- | -------------- |
-| Level       | Advanced       |
-| Dokumentasi | Lengkap        |
-| Kesiapan    | Siap Integrasi |
+| Status   | Keterangan      |
+| -------- | --------------- |
+| Struktur | Selesai         |
+| Trigger  | Aktif           |
+| View     | Berjalan        |
+| Kesiapan | Siap presentasi |
