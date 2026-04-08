@@ -1,4 +1,4 @@
-# 🏍️ Sistem Database Bengkel Motor Pro (MySQL)
+# 🏍️ Sistem Database Bengkel Motor (MySQL)
 
 > Project Database Relasional menggunakan **MySQL 8.4.3**
 > Studi kasus: Manajemen Data Bengkel Motor dengan fokus pada **Trigger** dan **View**
@@ -332,14 +332,3 @@ VALUES (1, '2026-04-02', 'cek mesin', -50000);
 | Relasi  | Data terhubung dengan baik            |
 
 Database ini menunjukkan bagaimana **Trigger** dan **View** dapat meningkatkan efisiensi dan keamanan dalam sistem database.
-
----
-
-# 🚀 Status Project
-
-| Status   | Keterangan      |
-| -------- | --------------- |
-| Struktur | Selesai         |
-| Trigger  | Aktif           |
-| View     | Berjalan        |
-| Kesiapan | Siap presentasi |
