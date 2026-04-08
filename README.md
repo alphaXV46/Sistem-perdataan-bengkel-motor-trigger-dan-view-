@@ -1,15 +1,17 @@
 # 🏍️ Sistem Database Bengkel Motor Pro (MySQL)
 
 > Project Database Relasional menggunakan **MySQL 8.4.3**
-> Studi kasus: Manajemen Data Bengkel Motor dengan Automasi Trigger & View Laporan.
+> Studi kasus: Manajemen Data Bengkel Motor dengan Automasi Trigger & View Laporan
 
 ---
 
 ## 👥 Anggota Kelompok
 
-1. **Geraldy Febriansyah**
-2. **Naufal Imania**
-3. **Aulia Novi**
+| No | Nama                |
+| -- | ------------------- |
+| 1  | Geraldy Febriansyah |
+| 2  | Naufal Imania       |
+| 3  | Aulia Novi          |
 
 🔗 LinkedIn (Project Owner):
 [https://www.linkedin.com/in/geraldy-febriansyah-b850473a6](https://www.linkedin.com/in/geraldy-febriansyah-b850473a6)
@@ -18,24 +20,31 @@
 
 # 📌 Deskripsi Project
 
-Project ini mengimplementasikan sistem database bengkel yang tidak hanya menyimpan data, tetapi juga memiliki logika bisnis otomatis menggunakan **Triggers** untuk validasi data dan **Views** untuk penyajian laporan yang kompleks.
+Project ini merupakan implementasi sistem database bengkel motor berbasis **MySQL** yang tidak hanya berfungsi sebagai penyimpanan data, tetapi juga memiliki **logika otomatis (Triggers)** dan **laporan dinamis (Views)**.
 
-Fitur Utama:
-* ✅ **6 Triggers:** Automasi validasi, logging, dan sinkronisasi data.
-* ✅ **2 Views:** Laporan pendapatan bulanan dan riwayat servis lengkap.
-* ✅ **Relational Integrity:** Penggunaan FK yang ketat.
+### 🎯 Tujuan
+
+* Mengelola data pelanggan, motor, dan servis
+* Menjaga konsistensi data secara otomatis
+* Menyediakan laporan tanpa query kompleks
+
+### ⚙️ Fitur Utama
+
+| Fitur    | Keterangan                                         |
+| -------- | -------------------------------------------------- |
+| Triggers | 6 trigger untuk validasi, logging, dan otomatisasi |
+| Views    | 2 view untuk laporan                               |
+| Relasi   | Foreign Key untuk menjaga integritas data          |
+| Audit    | Log perubahan & arsip data                         |
 
 ---
 
 # 🗄️ 1. Setup Database & Tabel Tambahan
 
-Selain tabel utama, kita memerlukan tabel `log_aktivitas` dan `arsip_servis` untuk mendukung fungsi trigger.
-
 ```sql
 CREATE DATABASE db_bengkel_motor_pro;
 USE db_bengkel_motor_pro;
 
--- Tabel Log untuk memantau perubahan biaya servis
 CREATE TABLE log_pembayaran (
     id_log INT PRIMARY KEY AUTO_INCREMENT,
     id_servis INT,
@@ -44,7 +53,6 @@ CREATE TABLE log_pembayaran (
     waktu_perubahan DATETIME
 );
 
--- Tabel Arsip untuk data servis yang dihapus
 CREATE TABLE arsip_servis (
     id_arsip INT PRIMARY KEY AUTO_INCREMENT,
     id_motor INT,
@@ -57,7 +65,14 @@ CREATE TABLE arsip_servis (
 
 # 📊 2. Struktur Tabel Utama
 
-*(Struktur `pelanggan`, `motor`, dan `servis` tetap sama dengan modifikasi kolom audit jika diperlukan)*
+## 🔹 Tabel pelanggan
+
+| Field          | Tipe Data    | Keterangan     |
+| -------------- | ------------ | -------------- |
+| id_pelanggan   | INT (PK, AI) | ID pelanggan   |
+| nama_pelanggan | VARCHAR(100) | Nama pelanggan |
+| alamat         | TEXT         | Alamat         |
+| no_telp        | VARCHAR(15)  | Nomor telepon  |
 
 ```sql
 CREATE TABLE pelanggan (
@@ -66,16 +81,45 @@ CREATE TABLE pelanggan (
     alamat TEXT,
     no_telp VARCHAR(15)
 );
+```
 
+---
+
+## 🔹 Tabel motor
+
+| Field               | Tipe Data    | Keterangan          |
+| ------------------- | ------------ | ------------------- |
+| id_motor            | INT (PK, AI) | ID motor            |
+| plat_nomor          | VARCHAR(15)  | Unik                |
+| merk                | VARCHAR(50)  | Merk motor          |
+| id_pelanggan        | INT (FK)     | Relasi ke pelanggan |
+| total_servis_dibuat | INT          | Counter servis      |
+
+```sql
 CREATE TABLE motor (
     id_motor INT PRIMARY KEY AUTO_INCREMENT,
     plat_nomor VARCHAR(15) UNIQUE,
     merk VARCHAR(50),
     id_pelanggan INT,
-    total_servis_dibuat INT DEFAULT 0, -- Untuk Trigger hitung otomatis
+    total_servis_dibuat INT DEFAULT 0,
     FOREIGN KEY (id_pelanggan) REFERENCES pelanggan(id_pelanggan)
 );
+```
 
+---
+
+## 🔹 Tabel servis
+
+| Field             | Tipe Data     | Keterangan      |
+| ----------------- | ------------- | --------------- |
+| id_servis         | INT (PK, AI)  | ID servis       |
+| id_motor          | INT (FK)      | Relasi ke motor |
+| tanggal_servis    | DATE          | Tanggal         |
+| keluhan           | TEXT          | Keluhan         |
+| biaya             | DECIMAL(10,2) | Biaya           |
+| status_pembayaran | VARCHAR(20)   | Status          |
+
+```sql
 CREATE TABLE servis (
     id_servis INT PRIMARY KEY AUTO_INCREMENT,
     id_motor INT,
@@ -89,12 +133,21 @@ CREATE TABLE servis (
 
 ---
 
-# ⚡ 3. Implementasi 6 Trigger
+# ⚡ 3. Implementasi Trigger
 
-Trigger digunakan untuk memastikan data konsisten tanpa perlu campur tangan manual di sisi aplikasi.
+| No | Nama Trigger              | Event         | Fungsi          |
+| -- | ------------------------- | ------------- | --------------- |
+| 1  | trg_upper_plat            | BEFORE INSERT | Uppercase plat  |
+| 2  | trg_validasi_biaya        | BEFORE INSERT | Validasi biaya  |
+| 3  | trg_log_biaya             | AFTER UPDATE  | Log perubahan   |
+| 4  | trg_update_counter_servis | AFTER INSERT  | Hitung servis   |
+| 5  | trg_protect_lunas         | BEFORE UPDATE | Proteksi status |
+| 6  | trg_arsip_servis          | AFTER DELETE  | Arsip data      |
 
-### 1. Auto-Uppercase Plat Nomor (Before Insert)
-Memastikan plat nomor selalu tersimpan dalam huruf kapital.
+---
+
+### 1. Auto Uppercase Plat
+
 ```sql
 CREATE TRIGGER trg_upper_plat
 BEFORE INSERT ON motor
@@ -102,8 +155,10 @@ FOR EACH ROW
 SET NEW.plat_nomor = UPPER(NEW.plat_nomor);
 ```
 
-### 2. Validasi Biaya Minimum (Before Insert)
-Mencegah input biaya servis bernilai negatif.
+---
+
+### 2. Validasi Biaya
+
 ```sql
 DELIMITER //
 CREATE TRIGGER trg_validasi_biaya
@@ -117,8 +172,10 @@ END //
 DELIMITER ;
 ```
 
-### 3. Log Perubahan Biaya (After Update)
-Mencatat riwayat jika ada perubahan nominal biaya pada tabel servis.
+---
+
+### 3. Log Perubahan Biaya
+
 ```sql
 CREATE TRIGGER trg_log_biaya
 AFTER UPDATE ON servis
@@ -131,33 +188,42 @@ BEGIN
 END;
 ```
 
-### 4. Counter Servis Motor (After Insert)
-Menambah jumlah total servis pada tabel `motor` setiap kali ada transaksi servis baru.
+---
+
+### 4. Counter Servis Motor
+
 ```sql
 CREATE TRIGGER trg_update_counter_servis
 AFTER INSERT ON servis
 FOR EACH ROW
-UPDATE motor SET total_servis_dibuat = total_servis_dibuat + 1 
+UPDATE motor 
+SET total_servis_dibuat = total_servis_dibuat + 1 
 WHERE id_motor = NEW.id_motor;
 ```
 
-### 5. Proteksi Status Lunas (Before Update)
-Mencegah status yang sudah 'lunas' diubah kembali menjadi 'belum lunas'.
+---
+
+### 5. Proteksi Status Lunas
+
 ```sql
 DELIMITER //
 CREATE TRIGGER trg_protect_lunas
 BEFORE UPDATE ON servis
 FOR EACH ROW
 BEGIN
-    IF OLD.status_pembayaran = 'lunas' AND NEW.status_pembayaran = 'belum lunas' THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Transaksi lunas tidak bisa dibatalkan!';
+    IF OLD.status_pembayaran = 'lunas' 
+       AND NEW.status_pembayaran = 'belum lunas' THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'Transaksi lunas tidak bisa dibatalkan!';
     END IF;
 END //
 DELIMITER ;
 ```
 
-### 6. Arsip Data Terhapus (After Delete)
-Memindahkan data servis yang dihapus ke tabel arsip agar tidak hilang sepenuhnya.
+---
+
+### 6. Arsip Data Terhapus
+
 ```sql
 CREATE TRIGGER trg_arsip_servis
 AFTER DELETE ON servis
@@ -168,12 +234,17 @@ VALUES (OLD.id_motor, OLD.keluhan, NOW());
 
 ---
 
-# 👁️ 4. Implementasi 2 View
+# 👁️ 4. Implementasi View
 
-View memudahkan kita untuk melihat laporan tanpa perlu menulis query JOIN yang panjang berkali-kali.
+| No | Nama View            | Fungsi         |
+| -- | -------------------- | -------------- |
+| 1  | v_riwayat_lengkap    | Riwayat servis |
+| 2  | v_pendapatan_bulanan | Laporan omzet  |
 
-### 1. View Riwayat Servis Lengkap
-Menampilkan data gabungan pelanggan, motor, dan detail servisnya.
+---
+
+### 1. View Riwayat Lengkap
+
 ```sql
 CREATE VIEW v_riwayat_lengkap AS
 SELECT 
@@ -189,8 +260,10 @@ JOIN motor m ON p.id_pelanggan = m.id_pelanggan
 JOIN servis s ON m.id_motor = s.id_motor;
 ```
 
-### 2. View Laporan Pendapatan Bulanan
-Menghitung total uang masuk yang sudah lunas per bulan.
+---
+
+### 2. View Pendapatan Bulanan
+
 ```sql
 CREATE VIEW v_pendapatan_bulanan AS
 SELECT 
@@ -204,38 +277,58 @@ GROUP BY bulan;
 
 ---
 
-# 📝 5. Uji Coba Query
+# 📝 5. Contoh Hasil Output
 
-### Menampilkan Laporan dari View
+## 🔹 Riwayat Servis
+
+| nama_pelanggan | plat_nomor | merk  | tanggal_servis | keluhan   | biaya | status |
+| -------------- | ---------- | ----- | -------------- | --------- | ----- | ------ |
+| Geraldy        | B1234XYZ   | Honda | 2026-04-01     | Ganti oli | 75000 | lunas  |
+
+---
+
+## 🔹 Pendapatan Bulanan
+
+| bulan   | total_transaksi | total_pendapatan |
+| ------- | --------------- | ---------------- |
+| 2026-04 | 5               | 350000           |
+
+---
+
+# 🧪 6. Pengujian
+
+### Query View
+
 ```sql
--- Melihat riwayat pelanggan
-SELECT * FROM v_riwayat_lengkap WHERE nama_pelanggan = 'geraldy';
-
--- Melihat omzet bengkel
+SELECT * FROM v_riwayat_lengkap;
 SELECT * FROM v_pendapatan_bulanan;
 ```
 
-### Menguji Trigger Validasi
+### Uji Validasi Trigger
+
 ```sql
--- Ini akan error karena biaya negatif
 INSERT INTO servis (id_motor, tanggal_servis, keluhan, biaya) 
 VALUES (1, '2026-04-08', 'cek mesin', -50000);
 ```
 
 ---
 
-# 🎯 Kesimpulan & Pengembangan
+# 🎯 Kesimpulan
 
-Dengan penambahan **Triggers** dan **Views**, database ini sekarang memiliki:
-1. **Keamanan Data:** Validasi nilai dan proteksi status pembayaran.
-2. **Audit Trail:** Riwayat perubahan biaya dan arsip data terhapus.
-3. **Efisiensi:** Laporan dapat diakses langsung melalui View tanpa JOIN manual.
+| Aspek         | Hasil                            |
+| ------------- | -------------------------------- |
+| Keamanan Data | Validasi & proteksi otomatis     |
+| Audit         | Tercatat log & arsip             |
+| Efisiensi     | View menggantikan query kompleks |
 
-Database ini siap diintegrasikan dengan aplikasi **Laravel** (Project DefaCraftStore kamu) atau sistem manajemen internal bengkel lainnya.
+Database ini sudah siap digunakan sebagai backend dan dapat diintegrasikan ke aplikasi seperti Laravel atau sistem manajemen bengkel.
 
 ---
 
 # 🚀 Status Project
-✅ **Level: Advanced Backend Ready**
-✅ Dokumentasi Lengkap
-✅ Logic Teruji
+
+| Status      | Keterangan     |
+| ----------- | -------------- |
+| Level       | Advanced       |
+| Dokumentasi | Lengkap        |
+| Kesiapan    | Siap Integrasi |
